@@ -37,7 +37,7 @@ while not connected:
     pass
 
 # Message
-msg="events/topic, Jhon, 1983-10-06, Birthday, 1"
+msg="events/topic1, Andres, 1993-02-15, Birthday, 0"
 
 data = msg.split(", ")
 

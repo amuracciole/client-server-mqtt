@@ -12,7 +12,7 @@ emqx_pass = config.EMQX_PASSWORD
 def establish_connection():
     cnx = mysql.connector.connect(
         host=config.MYSQL_HOST,
-        user=config.MYSQL_HOST,
+        user=config.MYSQL_USER,
         password=config.MYSQL_PASS,
         database=config.MYSQL_DATABASE
     )
@@ -38,19 +38,10 @@ def table_exists(cnx, table_name):
     return exists
     
 # Funcion to create table in database
-def create_table(cnx, table_name):
+def create_table(cnx, table_name, columns):
     cursor = cnx.cursor()
-
-    create_table_query = """
-    CREATE TABLE {} (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    name VARCHAR(255),
-    date DATE,
-    type_event VARCHAR(255),
-    recurrency BIT
-    )
-    """.format(table_name)
-
+    
+    create_table_query = f"CREATE TABLE {table_name} ({', '.join(columns)})"
     cursor.execute(create_table_query)
 
     cnx.commit()
@@ -70,12 +61,11 @@ def insert_values(cnx, table_name, topic, name, date, type_event, recurrency):
     cursor.close()
 
 # Funcion to check if are entry with specific name
-def check_topic_exists(cnx, topic_value):
-    
+def check_topic_exists(cnx, table_name, column_value):
     cursor = cnx.cursor()
 
-    query = "SELECT EXISTS (SELECT 1 FROM topics WHERE topic = %s)"
-    cursor.execute(query, (topic_value,))
+    query = f"SELECT EXISTS (SELECT 1 FROM {table_name} WHERE topic = %s)"
+    cursor.execute(query, (column_value,))
 
     result = cursor.fetchone()[0]
 
@@ -119,30 +109,72 @@ def update_data(cnx, table_name, topic, new_name, new_date, new_type_event, new_
 def on_message(client, userdata, msg):
     print("RECEIVED (" + msg.topic + ") -- " + msg.payload.decode())
     data = msg.payload.decode().split(", ")
-    if check_topic_exists(connection, (data[0].split("/")[1])) == False:
-        insert_values(connection, "topics", data[0].split("/")[1], data[1], data[2], data[3], int(data[4]))
+    table = data[0].split("/")[1]
+    if table.startswith("topic"):
+        if check_topic_exists(connection, "topics", (data[0].split("/")[1])) == False:
+            insert_values(connection, "topics", data[0].split("/")[1], data[1], data[2], data[3], int(data[4]))
+        else:
+            update_data(connection, "topics", data[0].split("/")[1], data[1], data[2], data[3], int(data[4]))
+    """
     else:
-        update_data(connection, "topics", data[0].split("/")[1], data[1], data[2], data[3], int(data[4]))
+        if check_topic_exists(connection, table, (data[0].split("/")[1])) == False:
+            insert_values(connection, table, data[0].split("/")[1], data[1], data[2], data[3], int(data[4]))
+        else:
+            update_data(connection, table, data[0].split("/")[1], data[1], data[2], data[3], int(data[4]))
+    """
+
+# Function to read data base
+def read_table(cnx, table_name):
+
+    cursor = cnx.cursor()
+
+    read_table_query = f"SELECT * FROM {table_name}"
+    cursor.execute(read_table_query)
+    rows = cursor.fetchall()
+
+    #return rows
+    formatted_rows = []
+    for row in rows:
+        formatted_row = f"events/{row[1]}, {row[2]}, {row[3].strftime('%Y-%m-%d')}, {row[4]}, {row[5]}"
+        formatted_rows.append(formatted_row)
+
+    return formatted_rows
+
+# Function to create "static topics" like public holidays
+def create_static_topics(connection, table_name, client):    
+    # Message
+    # Falta tambien hacer&mejorar la funcion que gusrda en bas de datos ya que hoy todo lo que recibe, lo guardaen la tabla topics. Hay que ver como hacer para que lea el topic y en funcion de eso guarde en la tabla determinada
+    # Cuidado porue al leantar vaa generar el topico y como el server esta suscrito, recibirá los mensajes. Hay que compararlos a los que ya hay para que no los sobreescriba
+    table = read_table(connection, table_name)
+    for row in table:
+        msg=row
+        topic="events/"+table_name
+        client.publish(topic, msg, retain=False)
+        print("SENT (" + topic + ") -- ", msg)
+    
 
 #### PROGRAM ####
 connection = establish_connection()
 if not table_exists(connection, "topics"):
-    create_table(connection, "topics")
+    create_table(connection, "topics", ["id INT AUTO_INCREMENT PRIMARY KEY", "topic VARCHAR(255)", "name VARCHAR(255)", "date DATE", "type_event VARCHAR(255)", "recurrency BIT"])
 
 # Create MQTT client instance
-cliente = mqtt.Client()
+client = mqtt.Client()
 
 # Asign auth credentials
-cliente.username_pw_set(emqx_user, emqx_pass)
+client.username_pw_set(emqx_user, emqx_pass)
 
 # Asign callback for received message
-cliente.on_message = on_message
+client.on_message = on_message
 
 # Connect to EMQX server
-cliente.connect(broker, puerto)
+client.connect(broker, puerto)
+
+#Create statics topics
+#create_static_topics(connection, "holidays_uruguay", client)
 
 # Subsribe
-cliente.subscribe("events/+")
+client.subscribe("events/+")
 
 # Keep conextion ans precess received messages
-cliente.loop_forever()
+client.loop_forever()
