@@ -139,18 +139,6 @@ def read_table(cnx, table_name):
         formatted_rows.append(formatted_row)
 
     return formatted_rows
-
-# Function to create "static topics" like public holidays
-def create_static_topics(connection, table_name, client):    
-    # Message
-    # Falta tambien hacer&mejorar la funcion que gusrda en bas de datos ya que hoy todo lo que recibe, lo guardaen la tabla topics. Hay que ver como hacer para que lea el topic y en funcion de eso guarde en la tabla determinada
-    # Cuidado porue al leantar vaa generar el topico y como el server esta suscrito, recibirá los mensajes. Hay que compararlos a los que ya hay para que no los sobreescriba
-    table = read_table(connection, table_name)
-    for row in table:
-        msg=row
-        topic="events/"+table_name
-        client.publish(topic, msg, retain=False)
-        print("SENT (" + topic + ") -- ", msg)
     
 
 #### PROGRAM ####
@@ -169,9 +157,6 @@ client.on_message = on_message
 
 # Connect to EMQX server
 client.connect(broker, puerto)
-
-#Create statics topics
-#create_static_topics(connection, "holidays_uruguay", client)
 
 # Subsribe
 client.subscribe("events/+")

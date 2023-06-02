@@ -1,6 +1,7 @@
 import paho.mqtt.client as mqtt
 import mysql.connector
 import config
+import time
 
 #Set variables
 broker = config.EMQX_BROKER
@@ -36,7 +37,7 @@ def read_table(cnx, table_name):
     for row in rows:
         formatted_row = f"events/{row[1]}, {row[2]}, {row[3].strftime('%Y-%m-%d')}, {row[4]}, {row[5]}"
         formatted_rows.append(formatted_row)
-
+    
     return formatted_rows
 
 # Function to create "static topics" like public holidays
@@ -47,6 +48,7 @@ def create_static_topics(connection, table_name, client):
         topic="events/"+table_name
         client.publish(topic, msg, retain=False)
         print("SENT (" + topic + ") -- ", msg)
+        time.sleep(1)
     
 
 #### PROGRAM ####
@@ -63,6 +65,8 @@ client.connect(broker, puerto)
 
 #Create statics topics
 create_static_topics(connection, "holidays_uruguay", client)
+create_static_topics(connection, "holidays_spain", client)
+create_static_topics(connection, "catholic_religious", client)
 
 # EMQX disconnect
 client.disconnect()
