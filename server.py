@@ -4,7 +4,7 @@ import config
 
 #Set variables
 broker = config.EMQX_BROKER
-puerto = config.EMQX_PORT
+port = config.EMQX_PORT
 emqx_user = config.EMXQ_USER
 emqx_pass = config.EMQX_PASSWORD
 
@@ -48,12 +48,12 @@ def create_table(cnx, table_name, columns):
     cursor.close()
 
 #Funcion to insert values
-def insert_values(cnx, table_name, topic, name, date, type_event, recurrency):
+def insert_values(cnx, table_name, topic, name, date, type_event, recurring):
 
     cursor = cnx.cursor()
 
-    query = "INSERT INTO " + table_name + " (topic, name, date, type_event, recurrency) VALUES (%s, %s, %s, %s, %s)"
-    data = (topic, name, date, type_event, recurrency) 
+    query = "INSERT INTO " + table_name + " (topic, name, date, type_event, recurring) VALUES (%s, %s, %s, %s, %s)"
+    data = (topic, name, date, type_event, recurring) 
     print("Inserted line")
     cursor.execute(query, data)
 
@@ -74,7 +74,7 @@ def check_topic_exists(cnx, table_name, column_value):
     return bool(result)
 
 # Funcion to update entry in database
-def update_data(cnx, table_name, topic, new_name, new_date, new_type_event, new_recurrency):
+def update_data(cnx, table_name, topic, new_name, new_date, new_type_event, new_recurring):
 
     cursor = cnx.cursor()
     query = f"SELECT * FROM {table_name} WHERE topic = %s"
@@ -82,9 +82,9 @@ def update_data(cnx, table_name, topic, new_name, new_date, new_type_event, new_
     row = cursor.fetchone()
 
     if row is not None:
-        row_id, topic, name, date, type_event, recurrency = row
+        row_id, topic, name, date, type_event, recurring = row
 
-        if ((name == new_name) and (str(date) == new_date) and (type_event == new_type_event) and (recurrency == new_recurrency)):
+        if ((name == new_name) and (str(date) == new_date) and (type_event == new_type_event) and (recurring == new_recurring)):
             print("Same data")
             return
         if name != new_name:
@@ -93,11 +93,11 @@ def update_data(cnx, table_name, topic, new_name, new_date, new_type_event, new_
             date = new_date
         if type_event != new_type_event:
             type_event = new_type_event
-        if recurrency != new_recurrency:
-            recurrency = new_recurrency
+        if recurring != new_recurring:
+            recurring = new_recurring
 
-        update_query = f"UPDATE {table_name} SET name = %s, date = %s, type_event = %s, recurrency = %s WHERE id = %s"
-        cursor.execute(update_query, (name, date, type_event, recurrency, row_id))
+        update_query = f"UPDATE {table_name} SET name = %s, date = %s, type_event = %s, recurring = %s WHERE id = %s"
+        cursor.execute(update_query, (name, date, type_event, recurring, row_id))
         cnx.commit()
         print("Updated!")
     else:
@@ -144,7 +144,7 @@ def read_table(cnx, table_name):
 #### PROGRAM ####
 connection = establish_connection()
 if not table_exists(connection, "topics"):
-    create_table(connection, "topics", ["id INT AUTO_INCREMENT PRIMARY KEY", "topic VARCHAR(255)", "name VARCHAR(255)", "date DATE", "type_event VARCHAR(255)", "recurrency BIT"])
+    create_table(connection, "topics", ["id INT AUTO_INCREMENT PRIMARY KEY", "topic VARCHAR(255)", "name VARCHAR(255)", "date DATE", "type_event VARCHAR(255)", "recurring BIT"])
 
 # Create MQTT client instance
 client = mqtt.Client()
@@ -156,7 +156,7 @@ client.username_pw_set(emqx_user, emqx_pass)
 client.on_message = on_message
 
 # Connect to EMQX server
-client.connect(broker, puerto)
+client.connect(broker, port)
 
 # Subsribe
 client.subscribe("events/+")
