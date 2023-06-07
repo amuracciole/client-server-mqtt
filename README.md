@@ -1,4 +1,4 @@
-# RemindMe APP (MQTT)
+# Client-Server-Automatization (MQTT)
 Program that allows customers to subscribe to topics to receive calendar notifications.
 1- Execute server.py on the server side where EMQX is located.
 2- Execute client_sent.py on the client side.
