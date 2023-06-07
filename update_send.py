@@ -46,7 +46,7 @@ def create_static_topics(connection, table_name, client):
     for row in table:
         msg=row
         topic="events/"+table_name
-        client.publish(topic, msg, retain=False)
+        client.publish(topic, msg, retain=True)
         print("SENT (" + topic + ") -- ", msg)
         time.sleep(1)
     

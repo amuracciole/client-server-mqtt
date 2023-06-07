@@ -160,6 +160,6 @@ client.connect(broker, port)
 
 # Subsribe
 client.subscribe("events/+")
-
+print("\nREADY TO WORK!\n")
 # Keep conextion ans precess received messages
 client.loop_forever()
